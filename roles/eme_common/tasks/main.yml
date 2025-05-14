@@ -1,0 +1,32 @@
+---
+# Common tasks for EME operations
+
+- name: Set EME environment variables
+  ansible.builtin.set_fact:
+    eme_source_server: "{{ hostvars[groups[source_env][0]]['ansible_host'] }}"
+    eme_target_server: "{{ hostvars[groups[target_env][0]]['ansible_host'] }}"
+    temp_dir: "/tmp/eme_promotion"
+
+- name: Create temporary directory on target EME
+  ansible.builtin.file:
+    path: "{{ temp_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create temporary directory on control node
+  ansible.builtin.file:
+    path: "{{ temp_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Verify EME connectivity
+  ansible.builtin.shell: "air version"
+  register: eme_version
+  changed_when: false
+  failed_when: false
+
+- name: Fail if EME is not accessible
+  ansible.builtin.fail:
+    msg: "EME is not accessible on this host"
+  when: eme_version.rc != 0 

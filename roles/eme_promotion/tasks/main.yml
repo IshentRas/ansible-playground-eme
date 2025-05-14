@@ -1,0 +1,88 @@
+---
+# Tasks for promoting EME objects and tags
+
+- name: Display promotion start
+  ansible.builtin.debug:
+    msg: "Starting promotion of release tag {{ release_tag }} from {{ source_env }} to {{ target_env }}"
+  when: debug_enabled | bool
+
+- name: Export missing objects from source EME
+  eme_utils:
+    action: export_object
+    object_path: "{{ item.path }}"
+    version_path: "{{ item.version }}"
+    output_file: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
+  loop: "{{ missing_objects }}"
+  when: missing_objects | length > 0
+  delegate_to: "{{ eme_source_server }}"
+  notify:
+    - Clean up temporary files on source EME
+
+- name: Display object export progress
+  ansible.builtin.debug:
+    msg: "Exported {{ missing_objects | length }} objects from source EME"
+  when: missing_objects | length > 0 and debug_enabled | bool
+
+- name: Fetch ARL files from source EME to control node
+  ansible.builtin.fetch:
+    src: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
+    dest: "{{ temp_dir }}/"
+    flat: yes
+  delegate_to: "{{ eme_source_server }}"
+  loop: "{{ missing_objects }}"
+  when: missing_objects | length > 0
+
+- name: Copy ARL files from control node to target EME
+  ansible.builtin.copy:
+    src: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
+    dest: "{{ temp_dir }}/"
+  loop: "{{ missing_objects }}"
+  when: missing_objects | length > 0
+
+- name: Import objects into target EME
+  eme_utils:
+    action: import_object
+    arl_file: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
+  loop: "{{ missing_objects }}"
+  when: missing_objects | length > 0
+  delegate_to: "{{ eme_target_server }}"
+
+- name: Display object import progress
+  ansible.builtin.debug:
+    msg: "Imported {{ missing_objects | length }} objects into target EME"
+  when: missing_objects | length > 0 and debug_enabled | bool
+
+- name: Export release tag from source EME
+  eme_utils:
+    action: export_tag
+    tag_name: "{{ release_tag }}"
+    output_file: "{{ temp_dir }}/{{ release_tag }}.arl"
+  delegate_to: "{{ eme_source_server }}"
+  notify:
+    - Clean up temporary files on source EME
+
+- name: Fetch release tag ARL from source EME to control node
+  ansible.builtin.fetch:
+    src: "{{ temp_dir }}/{{ release_tag }}.arl"
+    dest: "{{ temp_dir }}/"
+    flat: yes
+  delegate_to: "{{ eme_source_server }}"
+
+- name: Copy release tag ARL from control node to target EME
+  ansible.builtin.copy:
+    src: "{{ temp_dir }}/{{ release_tag }}.arl"
+    dest: "{{ temp_dir }}/"
+
+- name: Import release tag into target EME
+  eme_utils:
+    action: import_object
+    arl_file: "{{ temp_dir }}/{{ release_tag }}.arl"
+  delegate_to: "{{ eme_target_server }}"
+
+- name: Display promotion completion
+  ansible.builtin.debug:
+    msg: "Successfully promoted release tag {{ release_tag }} to {{ target_env }}"
+  when: debug_enabled | bool
+
+- name: Notify cleanup handlers
+  ansible.builtin.meta: flush_handlers 

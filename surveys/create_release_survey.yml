@@ -1,0 +1,40 @@
+---
+name: "Create Release Tag Survey"
+description: "Survey for creating a new release tag from feature tags"
+spec:
+  - question_name: "Release Tag Name"
+    question_description: "Enter the release tag name (e.g., release-candidate-1.0)"
+    variable: "release_tag_name"
+    required: true
+    type: "text"
+    min: 1
+    max: 100
+
+  - question_name: "Feature Tags"
+    question_description: "Enter comma-separated feature tags to include in the release"
+    variable: "feature_tag_list"
+    required: true
+    type: "textarea"
+    min: 1
+    max: 1000
+
+  - question_name: "Source Environment"
+    question_description: "Select the source environment"
+    variable: "source_environment"
+    required: true
+    type: "multiplechoice"
+    choices:
+      - "sit"
+      - "uat"
+      - "pre-prod"
+    default: "sit"
+
+  - question_name: "Debug Output"
+    question_description: "Enable debug output for troubleshooting"
+    variable: "debug_mode"
+    required: true
+    type: "multiplechoice"
+    choices:
+      - "yes"
+      - "no"
+    default: "no" 

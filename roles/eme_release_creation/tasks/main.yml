@@ -1,0 +1,35 @@
+---
+# Tasks for creating a release tag from multiple feature tags
+
+- name: Get objects from feature tags
+  eme_utils:
+    action: get_tag_objects
+    tag_name: "{{ item }}"
+  register: feature_tag_objects
+  loop: "{{ feature_tags }}"
+
+- name: Combine objects from all feature tags
+  ansible.builtin.set_fact:
+    combined_objects: "{{ combined_objects | default([]) + item.objects }}"
+  loop: "{{ feature_tag_objects.results }}"
+
+- name: Remove exact duplicates while keeping all unique object-version combinations
+  ansible.builtin.set_fact:
+    unique_objects: "{{ combined_objects | unique }}"
+
+- name: Create release tag with combined objects
+  eme_utils:
+    action: create_tag
+    tag_name: "{{ release_tag }}"
+    objects: "{{ unique_objects }}"
+    comment: "Release tag {{ release_tag }} created from feature tags: {{ feature_tags | join(', ') }}"
+
+- name: Display created release tag information
+  ansible.builtin.debug:
+    msg: "Created release tag {{ release_tag }} with {{ unique_objects | length }} objects"
+  when: debug_enabled | bool
+
+- name: Display detailed object information
+  ansible.builtin.debug:
+    msg: "{{ unique_objects }}"
+  when: debug_enabled | bool 

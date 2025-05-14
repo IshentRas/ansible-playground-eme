@@ -1,0 +1,47 @@
+---
+# Main playbook for Ab Initio EME Release Promotion
+# This playbook handles the promotion of releases across environments
+
+- name: Promote Release Tag
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+  vars:
+    # Default values that can be overridden in AAP
+    source_env: "{{ source_environment | default('sit') }}"
+    target_env: "{{ target_environment }}"
+    release_tag: "{{ release_tag_name }}"
+    debug_enabled: "{{ debug_mode | default('no') | bool }}"
+  tasks:
+    - name: Set debug fact
+      ansible.builtin.set_fact:
+        debug_enabled: "{{ debug_mode | default('no') | bool }}"
+
+    - name: Include common tasks
+      ansible.builtin.import_role:
+        name: eme_common
+
+    - name: Include verification tasks
+      ansible.builtin.import_role:
+        name: eme_verification
+
+    - name: Include promotion tasks
+      ansible.builtin.import_role:
+        name: eme_promotion
+
+  pre_tasks:
+    - name: Validate environment names
+      ansible.builtin.fail:
+        msg: "Invalid environment combination. Source must be lower environment than target."
+      when: >
+        (source_env == 'prod' or
+         (source_env == 'pre-prod' and target_env != 'prod') or
+         (source_env == 'uat' and target_env not in ['pre-prod', 'prod']) or
+         (source_env == 'sit' and target_env not in ['uat', 'pre-prod', 'prod']))
+
+  roles:
+    - role: eme_common
+      tags: [common]
+    - role: eme_verification
+      tags: [verify]
+    - role: eme_promotion
+      tags: [promote] 

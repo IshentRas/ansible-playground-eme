@@ -1,0 +1,43 @@
+---
+name: "Promote Release Survey"
+description: "Survey for promoting a release tag to another environment"
+spec:
+  - question_name: "Source Environment"
+    question_description: "Select the source environment"
+    variable: "source_environment"
+    required: true
+    type: "multiplechoice"
+    choices:
+      - "sit"
+      - "uat"
+      - "pre-prod"
+    default: "sit"
+
+  - question_name: "Target Environment"
+    question_description: "Select the target environment"
+    variable: "target_environment"
+    required: true
+    type: "multiplechoice"
+    choices:
+      - "uat"
+      - "pre-prod"
+      - "prod"
+    default: "uat"
+
+  - question_name: "Release Tag"
+    question_description: "Enter the release tag name to promote"
+    variable: "release_tag_name"
+    required: true
+    type: "text"
+    min: 1
+    max: 100
+
+  - question_name: "Debug Output"
+    question_description: "Enable debug output for troubleshooting"
+    variable: "debug_mode"
+    required: true
+    type: "multiplechoice"
+    choices:
+      - "yes"
+      - "no"
+    default: "no" 

@@ -1,0 +1,48 @@
+---
+# Tasks for verifying EME object versions and environment readiness
+
+- name: Check if release tag exists in target EME
+  eme_utils:
+    action: check_tag
+    tag_name: "{{ release_tag }}"
+  register: tag_check
+  delegate_to: "{{ eme_target_server }}"
+
+- name: Fail if release tag already exists
+  ansible.builtin.fail:
+    msg: "Release tag {{ release_tag }} already exists in target environment. Please create a new release tag."
+  when: tag_check.exists
+
+- name: Flush handlers after tag check
+  ansible.builtin.meta: flush_handlers
+  when: tag_check.exists
+
+- name: Get release tag objects from source EME
+  eme_utils:
+    action: get_tag_objects
+    tag_name: "{{ release_tag }}"
+  register: tag_objects
+  delegate_to: "{{ eme_source_server }}"
+
+- name: Check object versions in target EME
+  eme_utils:
+    action: check_object
+    object_path: "{{ item.path }}"
+    version_path: "{{ item.version }}"
+  register: object_check
+  loop: "{{ tag_objects.objects }}"
+  delegate_to: "{{ eme_target_server }}"
+
+- name: Create list of missing objects
+  ansible.builtin.set_fact:
+    missing_objects: "{{ object_check.results | selectattr('exists', '==', false) | map(attribute='item') | list }}"
+
+- name: Display missing objects
+  ansible.builtin.debug:
+    msg: "The following objects are missing in the target environment: {{ missing_objects }}"
+  when: missing_objects | length > 0 and debug_enabled | bool
+
+- name: Display verification summary
+  ansible.builtin.debug:
+    msg: "Verification complete. Found {{ missing_objects | length }} missing objects."
+  when: debug_enabled | bool 
