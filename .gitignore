@@ -35,6 +35,7 @@ wheels/
 .idea/
 .vscode/
 *.iml
+.ansible/
 
 # Temporary files
 *.tmp
