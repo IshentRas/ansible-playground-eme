@@ -1,292 +1,122 @@
-# Ab Initio EME Release Promotion
+# EME Release Management with Ansible
 
-This Ansible project automates the promotion of Ab Initio EME releases across different environments (DEV, SIT, UAT, PRE-PROD, PROD). It ensures consistent and reliable promotion of application releases while maintaining proper version control and environment isolation.
+This project provides Ansible playbooks for managing EME (Enterprise Metadata Environment) releases and promotions.
 
 ## Prerequisites
 
-- Ansible Automation Platform (AAP) or Ansible Core
-- Access to source and target EME environments
-- Proper permissions to execute EME commands
-- SSH access to EME servers
+- Ansible 2.9 or higher
+- Access to EME servers
+- Python 3.x
+- Ab Initio `air` command-line tool installed on EME servers
 
-## Directory Structure
+## Project Structure
 
 ```
 .
-├── inventory/
-│   └── hosts.yml           # Environment inventory
+├── create_release_tag.yml      # Playbook for creating a release tag from feature tags
+├── promote_release.yml         # Playbook for promoting a release tag between environments
 ├── library/
-│   └── eme_utils.py        # Custom EME operations module
-├── roles/
-│   ├── eme_common/         # Common tasks and handlers
-│   │   ├── handlers/
-│   │   │   └── main.yml    # Cleanup handlers
-│   │   └── tasks/
-│   │       └── main.yml    # Common setup tasks
-│   ├── eme_verification/   # Pre-promotion checks
-│   │   └── tasks/
-│   │       └── main.yml    # Verification tasks
-│   ├── eme_promotion/      # Promotion operations
-│   │   └── tasks/
-│   │       └── main.yml    # Promotion tasks
-│   └── eme_release_creation/ # Release tag creation
-│       └── tasks/
-│           └── main.yml    # Tag creation tasks
-├── promote_release.yml     # Main promotion playbook
-└── create_release_tag.yml  # Release tag creation playbook
+│   └── eme_utils.py           # Custom module for EME operations
+└── roles/
+    ├── eme_common/            # Common tasks and handlers
+    ├── eme_release_creation/  # Tasks for creating release tags
+    ├── eme_verification/      # Tasks for verifying EME objects and tags
+    └── eme_promotion/         # Tasks for promoting releases between environments
 ```
 
-## Usage
+## Creating a Release Tag
 
-### Command Line Usage
+The `create_release_tag.yml` playbook creates a new release tag by combining objects from multiple feature tags in a lower environment (SIT or UAT).
 
-#### Creating a Release Tag
+### Usage
 
-1. Run the release tag creation playbook:
-   ```bash
-   ansible-playbook create_release_tag.yml
-   ```
+```bash
+ansible-playbook create_release_tag.yml
+```
 
-2. When prompted, provide:
-   - Release tag name (e.g., release-candidate-1.0)
-   - Feature tags to include (comma-separated list)
-   - Debug output (yes/no)
+The playbook will prompt for:
+- Release tag name
+- Feature tag names (comma-separated)
+- Source environment (SIT or UAT only)
+- Debug output option (yes/no)
 
-The playbook will:
-- Execute on the SIT environment
-- Collect objects from all specified feature tags
-- Preserve all unique object-version combinations:
-  - If the same object appears with different versions in different feature tags, all versions are kept
-  - Only exact duplicates (same object with same version) are removed
-- Create a new release tag with the combined objects
-- Display information about the created tag (if debug is enabled)
+### Process
 
-Debug Output:
-- When enabled, displays:
-  - Number of objects in the created tag
-  - Detailed list of all objects and their versions
-- Useful for:
-  - Verifying object versions from different feature tags
-  - Troubleshooting tag creation issues
-  - Auditing release content
+1. Creates a release tag in the specified lower environment (SIT or UAT)
+2. Combines objects from all specified feature tags
+3. Removes exact duplicates while preserving unique object-version combinations
+4. Provides debug output if enabled
 
-#### Promoting a Release
+## Promoting a Release
 
-1. Update the inventory file with your environment details:
-   ```yaml
-   all:
-     children:
-       sit:
-         hosts:
-           sit-eme:
-             ansible_host: sit-eme-server
-       uat:
-         hosts:
-           uat-eme:
-             ansible_host: uat-eme-server
-       # ... other environments
-   ```
+The `promote_release.yml` playbook promotes a release tag from one environment to another, handling dependencies and object versions.
 
-2. Run the playbook:
-   ```bash
-   ansible-playbook promote_release.yml
-   ```
+### Usage
 
-3. When prompted, provide:
-   - Source environment (e.g., sit, uat, pre-prod)
-   - Release tag name to promote
-   - Target environment (e.g., uat, pre-prod, prod)
-   - Debug output (yes/no)
+```bash
+ansible-playbook promote_release.yml
+```
 
-Debug Output:
-- When enabled, displays:
-  - Verification results and missing objects
-  - Object export and import progress
-  - Promotion start and completion status
-- Useful for:
-  - Monitoring promotion progress
-  - Troubleshooting issues
-  - Auditing promotion operations
+The playbook will prompt for:
+- Source environment (SIT, UAT, or pre-prod)
+- Release tag name
+- Target environment (UAT, pre-prod, or prod)
+- Debug output option (yes/no)
 
-### Ansible Automation Platform (AAP) Usage
+### Process
 
-#### Creating a Release Tag
+1. Verifies the release tag exists in the source environment
+2. Checks for missing objects in the target environment
+3. Exports missing objects from source EME server
+4. Transfers ARL files through control node to target EME server
+5. Imports objects into target EME server
+6. Creates the release tag in the target environment
+7. Provides debug output if enabled
 
-1. Create a job template using the `create_release_tag.yml` playbook
+### Host Targeting
 
-2. Configure survey questions in the job template:
-   ```yaml
-   spec:
-     - question_name: "Release Tag Name"
-       question_description: "Enter the release tag name (e.g., release-candidate-1.0)"
-       variable: "release_tag"
-       type: "text"
-       required: true
+The promotion playbook:
+- Uses direct host names (e.g., 'eme-sit', 'eme-uat') for targeting servers
+- Runs tasks on both source and target EME servers
+- Delegates specific tasks to the appropriate servers using host variables
+- Maintains proper file transfer sequence through the control node
+- Defaults to 'sit' for source and 'uat' for target if not specified
 
-     - question_name: "Feature Tags"
-       question_description: "Enter the feature tags to include (comma-separated)"
-       variable: "feature_tags"
-       type: "textarea"
-       required: true
+## Environment Flow
 
-     - question_name: "Debug Output"
-       question_description: "Enable detailed debug output?"
-       variable: "debug_mode"
-       type: "multiplechoice"
-       choices:
-         - "yes"
-         - "no"
-       default: "no"
-   ```
+Release tags should follow this promotion path:
+1. Created in SIT or UAT
+2. Promoted to UAT (if created in SIT)
+3. Promoted to pre-prod
+4. Promoted to prod
 
-Note: Release tags are always created in the SIT environment, so no environment selection is needed.
+## Debug Output
 
-#### Promoting a Release
-
-1. Create a new project in AAP and sync this repository
-
-2. Create a job template using the `promote_release.yml` playbook
-
-3. Configure survey questions in the job template with predefined choices:
-   ```yaml
-   spec:
-     - question_name: "Source Environment"
-       question_description: "Select the source environment"
-       variable: "source_env"
-       type: "multiplechoice"
-       choices:
-         - "dev"
-         - "sit"
-         - "uat"
-         - "pre-prod"
-       required: true
-
-     - question_name: "Target Environment"
-       question_description: "Select the target environment"
-       variable: "target_env"
-       type: "multiplechoice"
-       choices:
-         - "sit"
-         - "uat"
-         - "pre-prod"
-         - "prod"
-       required: true
-
-     - question_name: "Release Tag"
-       question_description: "Enter the release tag to promote"
-       variable: "release_tag"
-       type: "text"
-       required: true
-
-     - question_name: "Debug Output"
-       question_description: "Enable detailed debug output?"
-       variable: "debug_mode"
-       type: "multiplechoice"
-       choices:
-         - "yes"
-         - "no"
-       default: "no"
-   ```
-
-4. The survey will create a form in the AAP web interface with:
-   - Dropdown menus for source and target environments
-   - Text input for the release tag
-   - Validation to ensure proper promotion path
-
-5. Run the job template from the AAP web interface
-
-Note: When running in AAP, variables must be provided through the job template configuration rather than through interactive prompts. The survey questions provide a user-friendly interface for selecting environments and entering the release tag.
-
-## Process Flow
-
-1. **Release Tag Creation**
-   - Collects objects from multiple feature tags
-   - Combines and deduplicates objects
-   - Creates a new release tag with exact versions
-   - Provides detailed information about the created tag
-
-2. **Environment Validation**
-   - Validates environment names and promotion path
-   - Creates temporary directories
-   - Verifies EME connectivity
-
-3. **Object Verification**
-   - Checks if release tag already exists in target (fails if it does)
-   - Retrieves objects associated with the release tag
-   - Verifies object versions in target environment
-   - Identifies missing objects
-
-4. **Release Promotion**
-   - Exports missing objects from source EME
-   - Transfers ARL files through control node
-   - Imports objects into target EME
-   - Exports and imports release tag
-   - Cleans up temporary files
+Debug output can be enabled for both playbooks to provide detailed information about:
+- Object verification results
+- Export/import progress
+- Tag creation status
+- Missing objects and dependencies
 
 ## Custom Module
 
-The project includes a custom Python module (`eme_utils.py`) that encapsulates EME operations:
-
-- `get_tag_objects`: Retrieves objects associated with a tag
-- `check_object`: Verifies object existence
-- `check_tag`: Verifies tag existence
-- `export_object`: Exports object to ARL
-- `import_object`: Imports object from ARL
-- `export_tag`: Exports tag with objects
-
-## Error Handling
-
-- Fails early if release tag already exists in target
-- Proper cleanup of temporary files on failure
-- Detailed error messages for troubleshooting
-- Handlers ensure cleanup even on early failures
-
-## Best Practices
-
-1. **Release Tag Management**
-   - Create new, immutable release tags
-   - Never reuse existing tags
-   - Use consistent naming conventions
-
-2. **Environment Promotion**
-   - Follow the defined promotion path
-   - Verify objects before promotion
-   - Clean up temporary files after completion
-
-3. **Error Handling**
-   - Check for existing tags before promotion
-   - Maintain temporary files for investigation on failure
-   - Use handlers for reliable cleanup
-
-## Troubleshooting
-
-1. **Tag Already Exists**
-   - Create a new release tag
-   - Ensure proper versioning
-
-2. **Missing Objects**
-   - Verify object paths
-   - Check EME connectivity
-   - Ensure proper permissions
-
-3. **Import Failures**
-   - Check ARL file integrity
-   - Verify target EME space
-   - Review EME logs
-
-## Security Considerations
-
-- Use AAP credentials for secure execution
-- Implement proper access controls
-- Follow least privilege principle
-- Secure temporary file handling
+The `eme_utils.py` module provides the following actions:
+- `check_tag`: Verify if a tag exists
+- `get_tag_objects`: Get objects from a tag
+- `check_object`: Check if an object exists
+- `export_object`: Export an object to ARL file
+- `import_object`: Import an object from ARL file
+- `create_tag`: Create a new tag
+- `export_tag`: Export a tag to ARL file
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Submit a pull request
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-[Your License Here] 
+This project is licensed under the MIT License - see the LICENSE file for details. 

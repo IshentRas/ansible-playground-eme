@@ -62,6 +62,16 @@ class TestEMEUtils(unittest.TestCase):
         self.assertEqual(result[1]['path'], '/project/sit/xform_c.xfr')
         self.assertEqual(result[1]['version'], '/EMERepo/versions/xform_c/67')
 
+        # Test input with special characters in paths
+        special_chars = """
+        /project/sit/graph with spaces.mp(/EMERepo/versions/graph/123)
+        /project/sit/dml@special.dml(/EMERepo/versions/dml/45)
+        """
+        result = parse_tag_objects(special_chars)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['path'], '/project/sit/graph with spaces.mp')
+        self.assertEqual(result[1]['path'], '/project/sit/dml@special.dml')
+
     @patch('eme_utils.run_air_command')
     def test_get_tag_objects_success(self, mock_run_command):
         """Test successful tag object retrieval."""
@@ -94,6 +104,10 @@ class TestEMEUtils(unittest.TestCase):
         mock_run_command.return_value = (1, "", "")
         self.assertFalse(check_object_exists(self.module, "/test/obj", "/test/ver"))
 
+        # Test with empty paths
+        self.assertFalse(check_object_exists(self.module, "", "/test/ver"))
+        self.assertFalse(check_object_exists(self.module, "/test/obj", ""))
+
     @patch('eme_utils.run_air_command')
     def test_check_tag_exists(self, mock_run_command):
         """Test tag existence check."""
@@ -104,6 +118,9 @@ class TestEMEUtils(unittest.TestCase):
         # Test non-existing tag
         mock_run_command.return_value = (1, "", "")
         self.assertFalse(check_tag_exists(self.module, "non-existent-tag"))
+
+        # Test with empty tag name
+        self.assertFalse(check_tag_exists(self.module, ""))
 
     @patch('eme_utils.run_air_command')
     def test_export_object(self, mock_run_command):
@@ -117,6 +134,14 @@ class TestEMEUtils(unittest.TestCase):
         with self.assertRaises(Exception):
             export_object(self.module, "/test/obj", "/test/ver", "output.arl")
 
+        # Test with invalid paths
+        with self.assertRaises(Exception):
+            export_object(self.module, "", "/test/ver", "output.arl")
+        with self.assertRaises(Exception):
+            export_object(self.module, "/test/obj", "", "output.arl")
+        with self.assertRaises(Exception):
+            export_object(self.module, "/test/obj", "/test/ver", "")
+
     @patch('eme_utils.run_air_command')
     def test_import_object(self, mock_run_command):
         """Test object import."""
@@ -129,6 +154,10 @@ class TestEMEUtils(unittest.TestCase):
         with self.assertRaises(Exception):
             import_object(self.module, "input.arl")
 
+        # Test with empty file path
+        with self.assertRaises(Exception):
+            import_object(self.module, "")
+
     @patch('eme_utils.run_air_command')
     def test_export_tag(self, mock_run_command):
         """Test tag export."""
@@ -140,6 +169,12 @@ class TestEMEUtils(unittest.TestCase):
         mock_run_command.return_value = (1, "", "Export failed")
         with self.assertRaises(Exception):
             export_tag(self.module, "test-tag", "output.arl")
+
+        # Test with empty tag name or file path
+        with self.assertRaises(Exception):
+            export_tag(self.module, "", "output.arl")
+        with self.assertRaises(Exception):
+            export_tag(self.module, "test-tag", "")
 
     @patch('eme_utils.run_air_command')
     def test_create_tag(self, mock_run_command):
@@ -164,6 +199,14 @@ class TestEMEUtils(unittest.TestCase):
         # Test missing objects
         with self.assertRaises(Exception):
             create_tag(self.module, "test-tag", [], "Test comment")
+
+        # Test with invalid object format
+        invalid_objects = [
+            {'path': '/test/obj1'},  # Missing version
+            {'version': '/test/ver2'}  # Missing path
+        ]
+        with self.assertRaises(Exception):
+            create_tag(self.module, "test-tag", invalid_objects, "Test comment")
 
     @patch('subprocess.Popen')
     def test_run_air_command(self, mock_popen):
@@ -191,6 +234,10 @@ class TestEMEUtils(unittest.TestCase):
         mock_popen.side_effect = Exception("Command failed")
         with self.assertRaises(Exception):
             run_air_command(self.module, "air tag show test-tag")
+
+        # Test with empty command
+        with self.assertRaises(Exception):
+            run_air_command(self.module, "")
 
 if __name__ == '__main__':
     unittest.main() 

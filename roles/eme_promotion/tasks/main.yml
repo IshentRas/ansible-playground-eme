@@ -37,6 +37,7 @@
     mode: "0644"
   loop: "{{ missing_objects }}"
   when: missing_objects | length > 0
+  delegate_to: "{{ eme_target_server }}"
 
 - name: Import objects into target EME
   eme_utils:
@@ -70,6 +71,7 @@
     src: "{{ temp_dir }}/{{ release_tag }}.arl"
     dest: "{{ temp_dir }}/"
     mode: "0644"
+  delegate_to: "{{ eme_target_server }}"
 
 - name: Import release tag into target EME
   eme_utils:

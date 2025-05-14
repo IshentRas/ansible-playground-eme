@@ -7,6 +7,7 @@
   vars:
     # Default values that can be overridden in AAP
     source_env: "{{ source_environment | default('sit') }}"
+    target_env: "{{ source_env }}"  # For release creation, target is same as source
     release_tag: "{{ release_tag_name }}"
     feature_tags: "{{ feature_tag_list | default([]) }}"
     debug_enabled: "{{ debug_mode | default('no') | bool }}"
@@ -22,10 +23,6 @@
     - name: Include common tasks
       ansible.builtin.import_role:
         name: eme_common
-
-    - name: Include verification tasks
-      ansible.builtin.import_role:
-        name: eme_verification
 
     - name: Include release creation tasks
       ansible.builtin.import_role:

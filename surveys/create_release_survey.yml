@@ -11,7 +11,7 @@ spec:
     max: 100
 
   - question_name: "Feature Tags"
-    question_description: "Enter comma-separated feature tags to include in the release"
+    question_description: "Enter the feature tags to include (comma-separated)"
     variable: "feature_tag_list"
     required: true
     type: "textarea"
@@ -19,18 +19,17 @@ spec:
     max: 1000
 
   - question_name: "Source Environment"
-    question_description: "Select the source environment"
+    question_description: "Select the source environment (SIT or UAT only)"
     variable: "source_environment"
     required: true
     type: "multiplechoice"
     choices:
       - "sit"
       - "uat"
-      - "pre-prod"
     default: "sit"
 
   - question_name: "Debug Output"
-    question_description: "Enable debug output for troubleshooting"
+    question_description: "Enable detailed debug output?"
     variable: "debug_mode"
     required: true
     type: "multiplechoice"

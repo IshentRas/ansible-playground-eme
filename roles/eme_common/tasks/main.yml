@@ -7,7 +7,7 @@
     eme_target_server: "{{ hostvars[groups[target_env][0]]['ansible_host'] }}"
     temp_dir: "/tmp/eme_promotion"
 
-- name: Create temporary directory on target EME
+- name: Create temporary directory on source and target EME servers
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: directory
