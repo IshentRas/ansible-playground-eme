@@ -2,7 +2,7 @@
 # Playbook for creating a release tag from multiple feature tags
 
 - name: Create Release Tag from Feature Tags
-  hosts: "{{ target_hosts | default('sit') }}"
+  hosts: "eme-{{ source_env }}"
   gather_facts: false
   vars:
     # Default values that can be overridden in AAP
@@ -12,9 +12,16 @@
     feature_tags: "{{ feature_tag_list | default([]) }}"
     debug_enabled: "{{ debug_mode | default('no') | bool }}"
   pre_tasks:
-    - name: Set target hosts based on environment
+    - name: Validate environment names
+      ansible.builtin.fail:
+        msg: "Invalid environment name. Must be one of: dev, sit, uat"
+      when: source_env not in ['dev', 'sit', 'uat']
+
+    - name: Set EME server variables
       ansible.builtin.set_fact:
-        target_hosts: "{{ source_env }}"
+        eme_source_server: "{{ hostvars['eme-' + source_env]['ansible_host'] }}"
+        eme_target_server: "{{ eme_source_server }}"  # For release creation, target is same as source
+
   tasks:
     - name: Set debug fact
       ansible.builtin.set_fact:
