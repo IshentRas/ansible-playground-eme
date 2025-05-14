@@ -15,8 +15,6 @@
   loop: "{{ missing_objects }}"
   when: missing_objects | length > 0
   delegate_to: "{{ eme_source_server }}"
-  notify:
-    - Clean up temporary files on source EME
 
 - name: Display object export progress
   ansible.builtin.debug:
@@ -59,8 +57,6 @@
     tag_name: "{{ release_tag }}"
     output_file: "{{ temp_dir }}/{{ release_tag }}.arl"
   delegate_to: "{{ eme_source_server }}"
-  notify:
-    - Clean up temporary files on source EME
 
 - name: Fetch release tag ARL from source EME to control node
   ansible.builtin.fetch:
@@ -86,5 +82,6 @@
     msg: "Successfully promoted release tag {{ release_tag }} to {{ target_env }}"
   when: debug_enabled | bool
 
-- name: Notify cleanup handlers
+- name: Clean up all temporary files
   ansible.builtin.meta: flush_handlers
+  notify: cleanup_all

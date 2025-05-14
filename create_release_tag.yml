@@ -2,7 +2,7 @@
 # Playbook for creating a release tag from multiple feature tags
 
 - name: Create Release Tag from Feature Tags
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: "{{ target_hosts | default('sit') }}"
   gather_facts: false
   vars:
     # Default values that can be overridden in AAP
@@ -10,6 +10,10 @@
     release_tag: "{{ release_tag_name }}"
     feature_tags: "{{ feature_tag_list | default([]) }}"
     debug_enabled: "{{ debug_mode | default('no') | bool }}"
+  pre_tasks:
+    - name: Set target hosts based on environment
+      ansible.builtin.set_fact:
+        target_hosts: "{{ source_env }}"
   tasks:
     - name: Set debug fact
       ansible.builtin.set_fact:

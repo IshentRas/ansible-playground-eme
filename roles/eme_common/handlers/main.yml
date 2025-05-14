@@ -1,23 +1,23 @@
 ---
-# Handlers for EME common operations
+# Handlers for EME common tasks
 
 - name: Clean up temporary files on source EME
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: absent
   delegate_to: "{{ eme_source_server }}"
-  when: cleanup_temp | default(true) | bool
+  listen: cleanup_all
 
 - name: Clean up temporary files on target EME
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: absent
   delegate_to: "{{ eme_target_server }}"
-  when: cleanup_temp | default(true) | bool
+  listen: cleanup_all
 
 - name: Clean up temporary files on control node
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: absent
   delegate_to: localhost
-  when: cleanup_temp | default(true) | bool
+  listen: cleanup_all
