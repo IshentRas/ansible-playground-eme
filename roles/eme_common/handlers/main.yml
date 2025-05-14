@@ -20,4 +20,4 @@
     path: "{{ temp_dir }}"
     state: absent
   delegate_to: localhost
-  when: cleanup_temp | default(true) | bool 
+  when: cleanup_temp | default(true) | bool

@@ -32,4 +32,4 @@
 - name: Display detailed object information
   ansible.builtin.debug:
     msg: "{{ unique_objects }}"
-  when: debug_enabled | bool 
+  when: debug_enabled | bool

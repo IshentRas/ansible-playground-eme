@@ -37,4 +37,4 @@ spec:
     choices:
       - "yes"
       - "no"
-    default: "no" 
+    default: "no"

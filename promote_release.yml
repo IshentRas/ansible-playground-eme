@@ -44,4 +44,4 @@
     - role: eme_verification
       tags: [verify]
     - role: eme_promotion
-      tags: [promote] 
+      tags: [promote]

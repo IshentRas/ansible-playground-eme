@@ -11,17 +11,17 @@
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Create temporary directory on control node
   ansible.builtin.file:
     path: "{{ temp_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   delegate_to: localhost
 
 - name: Verify EME connectivity
-  ansible.builtin.shell: "air version"
+  ansible.builtin.command: "air version"
   register: eme_version
   changed_when: false
   failed_when: false
@@ -29,4 +29,4 @@
 - name: Fail if EME is not accessible
   ansible.builtin.fail:
     msg: "EME is not accessible on this host"
-  when: eme_version.rc != 0 
+  when: eme_version.rc != 0

@@ -45,4 +45,4 @@
 - name: Display verification summary
   ansible.builtin.debug:
     msg: "Verification complete. Found {{ missing_objects | length }} missing objects."
-  when: debug_enabled | bool 
+  when: debug_enabled | bool

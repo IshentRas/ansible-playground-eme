@@ -25,4 +25,4 @@
 
     - name: Include release creation tasks
       ansible.builtin.import_role:
-        name: eme_release_creation 
+        name: eme_release_creation

@@ -27,7 +27,7 @@
   ansible.builtin.fetch:
     src: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
     dest: "{{ temp_dir }}/"
-    flat: yes
+    flat: true
   delegate_to: "{{ eme_source_server }}"
   loop: "{{ missing_objects }}"
   when: missing_objects | length > 0
@@ -36,6 +36,7 @@
   ansible.builtin.copy:
     src: "{{ temp_dir }}/{{ item.path.split('/')[-1] }}.arl"
     dest: "{{ temp_dir }}/"
+    mode: "0644"
   loop: "{{ missing_objects }}"
   when: missing_objects | length > 0
 
@@ -65,13 +66,14 @@
   ansible.builtin.fetch:
     src: "{{ temp_dir }}/{{ release_tag }}.arl"
     dest: "{{ temp_dir }}/"
-    flat: yes
+    flat: true
   delegate_to: "{{ eme_source_server }}"
 
 - name: Copy release tag ARL from control node to target EME
   ansible.builtin.copy:
     src: "{{ temp_dir }}/{{ release_tag }}.arl"
     dest: "{{ temp_dir }}/"
+    mode: "0644"
 
 - name: Import release tag into target EME
   eme_utils:
@@ -85,4 +87,4 @@
   when: debug_enabled | bool
 
 - name: Notify cleanup handlers
-  ansible.builtin.meta: flush_handlers 
+  ansible.builtin.meta: flush_handlers
