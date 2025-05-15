@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import os
+import subprocess
 
 # Add the library directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'library'))
@@ -221,14 +222,18 @@ class TestEMEUtils(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(stdout, "output")
         self.assertEqual(stderr, "")
+        mock_popen.assert_called_once_with(
+            ['air', 'tag', 'show', 'test-tag'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
 
         # Test command failure
         mock_process.returncode = 1
         mock_process.communicate.return_value = ("", "error")
-        rc, stdout, stderr = run_air_command(self.module, "air tag show test-tag")
-        self.assertEqual(rc, 1)
-        self.assertEqual(stdout, "")
-        self.assertEqual(stderr, "error")
+        with self.assertRaises(Exception):
+            run_air_command(self.module, "air tag show test-tag")
 
         # Test command execution error
         mock_popen.side_effect = Exception("Command failed")

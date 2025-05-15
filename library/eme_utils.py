@@ -8,17 +8,31 @@ from typing import Dict, List, Tuple, Optional
 def run_air_command(module: AnsibleModule, command: str) -> Tuple[int, str, str]:
     """Run an air command and return the result."""
     try:
+        # Split the command into a list for safer execution
+        cmd_parts = command.split()
+        
         process = subprocess.Popen(
-            command,
+            cmd_parts,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=True,
             universal_newlines=True
         )
         stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            module.fail_json(
+                msg=f"Command failed with return code {process.returncode}",
+                stdout=stdout,
+                stderr=stderr,
+                cmd=command
+            )
+            
         return process.returncode, stdout, stderr
     except Exception as e:
-        module.fail_json(msg=f"Failed to execute air command: {str(e)}")
+        module.fail_json(
+            msg=f"Failed to execute air command: {str(e)}",
+            cmd=command
+        )
 
 def parse_tag_objects(output: str) -> List[Dict[str, str]]:
     """Parse the output of 'air tag show' command into a structured format."""
