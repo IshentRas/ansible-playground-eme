@@ -4,10 +4,19 @@ from ansible.module_utils.basic import AnsibleModule
 import subprocess
 import re
 from typing import Dict, List, Tuple, Optional
+import os
 
 def run_air_command(module: AnsibleModule, command: str) -> Tuple[int, str, str]:
     """Run an air command and return the result."""
     try:
+        # Get Ab Initio environment from module parameters
+        ab_env = module.params.get('ab_env', {})
+        
+        # Ensure we have a clean environment
+        env = os.environ.copy()
+        if ab_env:
+            env.update(ab_env)
+        
         # Split the command into a list for safer execution
         cmd_parts = command.split()
         
@@ -15,7 +24,8 @@ def run_air_command(module: AnsibleModule, command: str) -> Tuple[int, str, str]
             cmd_parts,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            universal_newlines=True
+            universal_newlines=True,
+            env=env
         )
         stdout, stderr = process.communicate()
         
@@ -140,7 +150,8 @@ def main():
             version_path=dict(type='str', required=False),
             output_file=dict(type='str', required=False),
             arl_file=dict(type='str', required=False),
-            comment=dict(type='str', required=False)
+            comment=dict(type='str', required=False),
+            ab_env=dict(type='dict', required=False, default={})
         ),
         required_if=[
             ('action', 'get_tag_objects', ['tag_name']),
