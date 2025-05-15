@@ -30,7 +30,7 @@ def run_air_command(module, command):
         
         if process.returncode != 0:
             module.fail_json(
-                msg=f"Command failed with return code {process.returncode}",
+                msg="Command failed with return code {}".format(process.returncode),
                 stdout=stdout,
                 stderr=stderr,
                 cmd=command
@@ -39,7 +39,7 @@ def run_air_command(module, command):
         return process.returncode, stdout, stderr
     except Exception as e:
         module.fail_json(
-            msg=f"Failed to execute air command: {str(e)}",
+            msg="Failed to execute air command: {}".format(str(e)),
             cmd=command
         )
 
@@ -62,48 +62,48 @@ def parse_tag_objects(output):
 
 def get_tag_objects(module, tag_name):
     """Get objects associated with a tag."""
-    command = f"air tag show {tag_name} -objects -verbose"
+    command = "air tag show {} -objects -verbose".format(tag_name)
     rc, stdout, stderr = run_air_command(module, command)
     
     if rc != 0:
-        module.fail_json(msg=f"Failed to get tag objects: {stderr}")
+        module.fail_json(msg="Failed to get tag objects: {}".format(stderr))
     
     return parse_tag_objects(stdout)
 
 def check_object_exists(module, obj_path, version_path):
     """Check if an object exists with the specified version."""
-    command = f"air object exists '{obj_path}' -version '{version_path}'"
+    command = "air object exists '{}' -version '{}'".format(obj_path, version_path)
     rc, stdout, stderr = run_air_command(module, command)
     return rc == 0
 
 def check_tag_exists(module, tag_name):
     """Check if a tag exists."""
-    command = f"air tag show {tag_name}"
+    command = "air tag show {}".format(tag_name)
     rc, stdout, stderr = run_air_command(module, command)
     return rc == 0
 
 def export_object(module, obj_path, version_path, output_file):
     """Export an object to an ARL file."""
-    command = f"air object export '{obj_path}' -version '{version_path}' -file {output_file}"
+    command = "air object export '{}' -version '{}' -file {}".format(obj_path, version_path, output_file)
     rc, stdout, stderr = run_air_command(module, command)
     if rc != 0:
-        module.fail_json(msg=f"Failed to export object: {stderr}")
+        module.fail_json(msg="Failed to export object: {}".format(stderr))
     return True
 
 def import_object(module, arl_file):
     """Import an object from an ARL file."""
-    command = f"air object import {arl_file}"
+    command = "air object import {}".format(arl_file)
     rc, stdout, stderr = run_air_command(module, command)
     if rc != 0:
-        module.fail_json(msg=f"Failed to import object: {stderr}")
+        module.fail_json(msg="Failed to import object: {}".format(stderr))
     return True
 
 def export_tag(module, tag_name, output_file):
     """Export a tag with its objects to an ARL file."""
-    command = f"air object export /EMETags/{tag_name} -file {output_file} -with-objects"
+    command = "air object export /EMETags/{} -file {} -with-objects".format(tag_name, output_file)
     rc, stdout, stderr = run_air_command(module, command)
     if rc != 0:
-        module.fail_json(msg=f"Failed to export tag: {stderr}")
+        module.fail_json(msg="Failed to export tag: {}".format(stderr))
     return True
 
 def create_tag(module, tag_name, objects, comment):
@@ -116,11 +116,11 @@ def create_tag(module, tag_name, objects, comment):
     # Format objects for air tag create command
     object_list = []
     for obj in objects:
-        object_list.append(f"{obj['path']}({obj['version']})")
+        object_list.append("{}({})".format(obj['path'], obj['version']))
     
     object_string = " ".join(object_list)
     if comment:
-        object_string += f" -comment {comment}"
+        object_string += " -comment {}".format(comment)
 
     # Build the air tag create command
     cmd = ['air', 'tag', 'create', tag_name, '-exact', '-objects', object_string]
@@ -128,7 +128,7 @@ def create_tag(module, tag_name, objects, comment):
     # Execute the command
     rc, out, err = run_air_command(module, ' '.join(cmd))
     if rc != 0:
-        module.fail_json(msg=f"Failed to create tag: {err}")
+        module.fail_json(msg="Failed to create tag: {}".format(err))
 
     return True
 
@@ -137,7 +137,7 @@ def get_air_version(module):
     command = "air version"
     rc, stdout, stderr = run_air_command(module, command)
     if rc != 0:
-        module.fail_json(msg=f"Failed to get air version: {stderr}")
+        module.fail_json(msg="Failed to get air version: {}".format(stderr))
     return stdout.strip()
 
 def main():
