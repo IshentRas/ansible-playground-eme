@@ -132,6 +132,14 @@ def create_tag(module, tag_name, objects, comment):
 
     return True
 
+def get_air_version(module):
+    """Get the version of the air CLI."""
+    command = "air version"
+    rc, stdout, stderr = run_air_command(module, command)
+    if rc != 0:
+        module.fail_json(msg=f"Failed to get air version: {stderr}")
+    return stdout.strip()
+
 def main():
     module = AnsibleModule(
         argument_spec=dict(
@@ -142,7 +150,8 @@ def main():
                 'export_object',
                 'import_object',
                 'export_tag',
-                'create_tag'
+                'create_tag',
+                'get_air_version'
             ]),
             tag_name=dict(type='str', required=False),
             object_path=dict(type='str', required=False),
@@ -207,6 +216,9 @@ def main():
                 module.params['comment']
             )
             result['changed'] = success
+        elif action == 'get_air_version':
+            version = get_air_version(module)
+            result['version'] = version
 
         module.exit_json(**result)
     except Exception as e:
