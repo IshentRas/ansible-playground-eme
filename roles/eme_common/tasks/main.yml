@@ -3,8 +3,8 @@
 
 - name: Set EME environment variables
   ansible.builtin.set_fact:
-    eme_source_server: "{{ hostvars[groups[source_env][0]]['ansible_host'] }}"
-    eme_target_server: "{{ hostvars[groups[target_env][0]]['ansible_host'] }}"
+    eme_source_server: "{{ ansible_host }}"
+    eme_target_server: "{{ eme_source_server }}"
     temp_dir: "/tmp/eme_promotion"
 
 - name: Create temporary directory on source and target EME servers
@@ -20,13 +20,31 @@
     mode: "0755"
   delegate_to: localhost
 
+- name: Get current PATH
+  ansible.builtin.shell: echo $PATH
+  register: current_path
+  changed_when: false
+
+- name: Set Ab Initio environment variables
+  ansible.builtin.set_fact:
+    ab_home: "{{ ab_home | default('/opt/abinitio') }}"
+    ab_air_root: "{{ ab_air_root | default('/opt/abinitio/air') }}"
+    ab_path: "{{ ab_home }}/bin:{{ current_path.stdout }}"
+    ab_env:
+      AB_HOME: "{{ ab_home }}"
+      AB_AIR_ROOT: "{{ ab_air_root }}"
+      PATH: "{{ ab_path }}"
+
 - name: Verify EME connectivity
-  ansible.builtin.command: "air version"
+  custom.eme.eme_utils:
+    command: "air version"
+    ab_env: "{{ ab_env }}"
+    debug: "{{ debug_enabled }}"
   register: eme_version
   changed_when: false
-  failed_when: false
+  failed_when: eme_version.rc != 0
 
 - name: Fail if EME is not accessible
   ansible.builtin.fail:
-    msg: "EME is not accessible on this host"
+    msg: "EME is not accessible on this host. Please verify AB_HOME and AB_AIR_ROOT are set correctly."
   when: eme_version.rc != 0
