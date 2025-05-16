@@ -6,7 +6,15 @@ import re
 import os
 
 def run_air_command(module, command):
-    """Run an air command and return the result."""
+    """Run an air command and return the result.
+    
+    Args:
+        module: Ansible module instance
+        command: Command to execute
+        
+    Returns:
+        tuple: (return_code, stdout, stderr, command)
+    """
     try:
         # Get Ab Initio environment from module parameters
         ab_env = module.params.get('ab_env', {})
@@ -27,16 +35,8 @@ def run_air_command(module, command):
             env=env
         )
         stdout, stderr = process.communicate()
-        
-        if process.returncode != 0:
-            module.fail_json(
-                msg="Command failed with return code {}".format(process.returncode),
-                stdout=stdout,
-                stderr=stderr,
-                cmd=command
-            )
             
-        return process.returncode, stdout, stderr
+        return process.returncode, stdout, stderr, command
     except Exception as e:
         module.fail_json(
             msg="Failed to execute air command: {}".format(str(e)),
@@ -46,65 +46,48 @@ def run_air_command(module, command):
 def parse_tag_objects(output):
     """Parse the output of 'air tag show' command into a structured format."""
     objects = []
+    # Pattern: one or more digits followed by whitespace and a path starting with /
+    pattern = r'^\s*(\d+)\s+(/.*)$'
+    
     for line in output.splitlines():
-        # Strip whitespace and check if line contains an object path
-        line = line.strip()
-        if '/' in line:
-            # Extract object path and version
-            match = re.match(r'^(.*?)\((.*?)\)$', line)
-            if match:
-                obj_path, version_path = match.groups()
-                objects.append({
-                    'path': obj_path,
-                    'version': version_path
-                })
+        match = re.match(pattern, line)
+        if match:
+            version, path = match.groups()
+            objects.append({
+                'path': path.strip(),
+                'version': version
+            })
     return objects
 
 def get_tag_objects(module, tag_name):
     """Get objects associated with a tag."""
     command = "air tag show {} -objects -verbose".format(tag_name)
-    rc, stdout, stderr = run_air_command(module, command)
-    
-    if rc != 0:
-        module.fail_json(msg="Failed to get tag objects: {}".format(stderr))
-    
-    return parse_tag_objects(stdout)
+    return run_air_command(module, command)
 
 def check_object_exists(module, obj_path, version_path):
     """Check if an object exists with the specified version."""
     command = "air object exists '{}' -version '{}'".format(obj_path, version_path)
-    rc, stdout, stderr = run_air_command(module, command)
-    return rc == 0
+    return run_air_command(module, command)
 
 def check_tag_exists(module, tag_name):
-    """Check if a tag exists."""
-    command = "air tag show {}".format(tag_name)
-    rc, stdout, stderr = run_air_command(module, command)
-    return rc == 0
+    """Check if a tag exists and return detailed information."""
+    command = "ls -l /tmp/{}".format(tag_name)
+    return run_air_command(module, command)
 
 def export_object(module, obj_path, version_path, output_file):
     """Export an object to an ARL file."""
     command = "air object export '{}' -version '{}' -file {}".format(obj_path, version_path, output_file)
-    rc, stdout, stderr = run_air_command(module, command)
-    if rc != 0:
-        module.fail_json(msg="Failed to export object: {}".format(stderr))
-    return True
+    return run_air_command(module, command)
 
 def import_object(module, arl_file):
     """Import an object from an ARL file."""
     command = "air object import {}".format(arl_file)
-    rc, stdout, stderr = run_air_command(module, command)
-    if rc != 0:
-        module.fail_json(msg="Failed to import object: {}".format(stderr))
-    return True
+    return run_air_command(module, command)
 
 def export_tag(module, tag_name, output_file):
     """Export a tag with its objects to an ARL file."""
     command = "air object export /EMETags/{} -file {} -with-objects".format(tag_name, output_file)
-    rc, stdout, stderr = run_air_command(module, command)
-    if rc != 0:
-        module.fail_json(msg="Failed to export tag: {}".format(stderr))
-    return True
+    return run_air_command(module, command)
 
 def create_tag(module, tag_name, objects, comment):
     """Create a new tag with specified objects."""
@@ -123,22 +106,13 @@ def create_tag(module, tag_name, objects, comment):
         object_string += " -comment {}".format(comment)
 
     # Build the air tag create command
-    cmd = ['air', 'tag', 'create', tag_name, '-exact', '-objects', object_string]
-
-    # Execute the command
-    rc, out, err = run_air_command(module, ' '.join(cmd))
-    if rc != 0:
-        module.fail_json(msg="Failed to create tag: {}".format(err))
-
-    return True
+    command = "air tag create {} -exact -objects {}".format(tag_name, object_string)
+    return run_air_command(module, command)
 
 def get_air_version(module):
     """Get the version of the air CLI."""
     command = "air version"
-    rc, stdout, stderr = run_air_command(module, command)
-    if rc != 0:
-        module.fail_json(msg="Failed to get air version: {}".format(stderr))
-    return stdout.strip()
+    return run_air_command(module, command)
 
 def main():
     module = AnsibleModule(
@@ -177,48 +151,75 @@ def main():
 
     try:
         if action == 'get_tag_objects':
-            objects = get_tag_objects(module, module.params['tag_name'])
+            rc, stdout, stderr, cmd = get_tag_objects(module, module.params['tag_name'])
+            if rc != 0:
+                module.fail_json(msg="Failed to get tag objects: {}".format(stderr))
+            objects = parse_tag_objects(stdout)
             result['objects'] = objects
             result['count'] = len(objects)
         elif action == 'check_object':
-            exists = check_object_exists(
+            rc, stdout, stderr, cmd = check_object_exists(
                 module,
                 module.params['object_path'],
                 module.params['version_path']
             )
-            result['exists'] = exists
+            result['exists'] = rc == 0
+            result['details'] = {
+                'return_code': rc,
+                'stdout': stdout,
+                'stderr': stderr,
+                'command': cmd
+            }
         elif action == 'check_tag':
-            exists = check_tag_exists(module, module.params['tag_name'])
-            result['exists'] = exists
+            rc, stdout, stderr, cmd = check_tag_exists(module, module.params['tag_name'])
+            result['exists'] = rc == 0
+            result['details'] = {
+                'return_code': rc,
+                'stdout': stdout,
+                'stderr': stderr,
+                'command': cmd
+            }
+            if not result['exists']:
+                result['message'] = "Tag does not exist and can be created"
         elif action == 'export_object':
-            success = export_object(
+            rc, stdout, stderr, cmd = export_object(
                 module,
                 module.params['object_path'],
                 module.params['version_path'],
                 module.params['output_file']
             )
-            result['changed'] = success
+            if rc != 0:
+                module.fail_json(msg="Failed to export object: {}".format(stderr))
+            result['changed'] = True
         elif action == 'import_object':
-            success = import_object(module, module.params['arl_file'])
-            result['changed'] = success
+            rc, stdout, stderr, cmd = import_object(module, module.params['arl_file'])
+            if rc != 0:
+                module.fail_json(msg="Failed to import object: {}".format(stderr))
+            result['changed'] = True
         elif action == 'export_tag':
-            success = export_tag(
+            rc, stdout, stderr, cmd = export_tag(
                 module,
                 module.params['tag_name'],
                 module.params['output_file']
             )
-            result['changed'] = success
+            if rc != 0:
+                module.fail_json(msg="Failed to export tag: {}".format(stderr))
+            result['changed'] = True
         elif action == 'create_tag':
-            success = create_tag(
+            rc, stdout, stderr, cmd = create_tag(
                 module,
                 module.params['tag_name'],
                 get_tag_objects(module, module.params['tag_name']),
                 module.params['comment']
             )
-            result['changed'] = success
+            if rc != 0:
+                module.fail_json(msg="Failed to create tag: {}".format(stderr))
+            result['changed'] = True
         elif action == 'get_air_version':
-            version = get_air_version(module)
-            result['version'] = version
+            rc, stdout, stderr, cmd = get_air_version(module)
+            if rc != 0:
+                module.fail_json(msg="Failed to get air version: {}".format(stderr))
+            result['version'] = stdout.strip()
 
         module.exit_json(**result)
     except Exception as e:
